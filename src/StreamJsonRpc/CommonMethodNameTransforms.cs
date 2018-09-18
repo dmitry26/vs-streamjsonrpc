@@ -4,8 +4,8 @@
 namespace StreamJsonRpc
 {
     using System;
+    using System.Data.JsonRpc;
     using Microsoft;
-    using Newtonsoft.Json.Serialization;
 
     /// <summary>
     /// Common RPC method transform functions that may be supplied to <see cref="JsonRpc.AddLocalRpcTarget(object, JsonRpcTargetOptions)"/>
@@ -13,11 +13,6 @@ namespace StreamJsonRpc
     /// </summary>
     public static class CommonMethodNameTransforms
     {
-        /// <summary>
-        /// The Newtonsoft.Json camel casing converter.
-        /// </summary>
-        private static readonly NamingStrategy CamelCaseStrategy = new CamelCaseNamingStrategy();
-
         /// <summary>
         /// Gets a function that converts a given string from PascalCase to camelCase.
         /// </summary>
@@ -37,7 +32,7 @@ namespace StreamJsonRpc
                         return string.Empty;
                     }
 
-                    return CamelCaseStrategy.GetPropertyName(name, hasSpecifiedName: false);
+                    return name.ToCamelCase();
                 };
             }
         }

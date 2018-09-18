@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Data.JsonRpc;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Threading;
@@ -32,8 +33,8 @@ public class JsonRpcMethodAttributeTests : TestBase
         this.serverStream = streams.Item1;
         this.clientStream = streams.Item2;
 
-        this.serverRpc = JsonRpc.Attach(this.serverStream, this.server);
-        this.clientRpc = JsonRpc.Attach(this.clientStream);
+        this.serverRpc = JsonRpc.Attach(this.serverStream, cr => new JsonRpcSerializer(cr), this.server);
+        this.clientRpc = JsonRpc.Attach(this.clientStream, cr => new JsonRpcSerializer(cr));
     }
 
     [Fact]
@@ -142,8 +143,8 @@ public class JsonRpcMethodAttributeTests : TestBase
         var serverStream = streams.Item1;
         var clientStream = streams.Item2;
 
-        Assert.Throws<ArgumentException>(() => JsonRpc.Attach(serverStream, clientStream, invalidServer));
-        Assert.Throws<ArgumentException>(() => new JsonRpc(serverStream, clientStream, invalidServer));
+        Assert.Throws<ArgumentException>(() => JsonRpc.Attach(serverStream, clientStream, cr => new JsonRpcSerializer(cr), invalidServer));
+        Assert.Throws<ArgumentException>(() => new JsonRpc(serverStream, clientStream, cr => new JsonRpcSerializer(cr), invalidServer));
     }
 
     [Fact]
@@ -155,8 +156,8 @@ public class JsonRpcMethodAttributeTests : TestBase
         var serverStream = streams.Item1;
         var clientStream = streams.Item2;
 
-        Assert.Throws<ArgumentException>(() => JsonRpc.Attach(serverStream, clientStream, invalidServer));
-        Assert.Throws<ArgumentException>(() => new JsonRpc(serverStream, clientStream, invalidServer));
+        Assert.Throws<ArgumentException>(() => JsonRpc.Attach(serverStream, clientStream, cr => new JsonRpcSerializer(cr), invalidServer));
+        Assert.Throws<ArgumentException>(() => new JsonRpc(serverStream, clientStream, cr => new JsonRpcSerializer(cr), invalidServer));
     }
 
     [Fact]
@@ -168,8 +169,8 @@ public class JsonRpcMethodAttributeTests : TestBase
         var serverStream = streams.Item1;
         var clientStream = streams.Item2;
 
-        Assert.Throws<ArgumentException>(() => JsonRpc.Attach(serverStream, clientStream, invalidServer));
-        Assert.Throws<ArgumentException>(() => new JsonRpc(serverStream, clientStream, invalidServer));
+        Assert.Throws<ArgumentException>(() => JsonRpc.Attach(serverStream, clientStream, cr => new JsonRpcSerializer(cr), invalidServer));
+        Assert.Throws<ArgumentException>(() => new JsonRpc(serverStream, clientStream, cr => new JsonRpcSerializer(cr), invalidServer));
     }
 
     [Fact]
@@ -181,8 +182,8 @@ public class JsonRpcMethodAttributeTests : TestBase
         var serverStream = streams.Item1;
         var clientStream = streams.Item2;
 
-        Assert.Throws<ArgumentException>(() => JsonRpc.Attach(serverStream, clientStream, invalidServer));
-        Assert.Throws<ArgumentException>(() => new JsonRpc(serverStream, clientStream, invalidServer));
+        Assert.Throws<ArgumentException>(() => JsonRpc.Attach(serverStream, clientStream, cr => new JsonRpcSerializer(cr), invalidServer));
+        Assert.Throws<ArgumentException>(() => new JsonRpc(serverStream, clientStream, cr => new JsonRpcSerializer(cr), invalidServer));
     }
 
     [Fact]
@@ -194,8 +195,8 @@ public class JsonRpcMethodAttributeTests : TestBase
         var serverStream = streams.Item1;
         var clientStream = streams.Item2;
 
-        Assert.Throws<ArgumentException>(() => JsonRpc.Attach(serverStream, clientStream, invalidServer));
-        Assert.Throws<ArgumentException>(() => new JsonRpc(serverStream, clientStream, invalidServer));
+        Assert.Throws<ArgumentException>(() => JsonRpc.Attach(serverStream, clientStream, cr => new JsonRpcSerializer(cr), invalidServer));
+        Assert.Throws<ArgumentException>(() => new JsonRpc(serverStream, clientStream, cr => new JsonRpcSerializer(cr), invalidServer));
     }
 
     [Fact]
@@ -207,8 +208,8 @@ public class JsonRpcMethodAttributeTests : TestBase
         var serverStream = streams.Item1;
         var clientStream = streams.Item2;
 
-        Assert.Throws<ArgumentException>(() => JsonRpc.Attach(serverStream, clientStream, invalidServer));
-        Assert.Throws<ArgumentException>(() => new JsonRpc(serverStream, clientStream, invalidServer));
+        Assert.Throws<ArgumentException>(() => JsonRpc.Attach(serverStream, clientStream, cr => new JsonRpcSerializer(cr), invalidServer));
+        Assert.Throws<ArgumentException>(() => new JsonRpc(serverStream, clientStream, cr => new JsonRpcSerializer(cr), invalidServer));
     }
 
     [Fact]
@@ -220,8 +221,8 @@ public class JsonRpcMethodAttributeTests : TestBase
         var serverStream = streams.Item1;
         var clientStream = streams.Item2;
 
-        Assert.Throws<ArgumentException>(() => JsonRpc.Attach(serverStream, clientStream, invalidServer));
-        Assert.Throws<ArgumentException>(() => new JsonRpc(serverStream, clientStream, invalidServer));
+        Assert.Throws<ArgumentException>(() => JsonRpc.Attach(serverStream, clientStream, cr => new JsonRpcSerializer(cr), invalidServer));
+        Assert.Throws<ArgumentException>(() => new JsonRpc(serverStream, clientStream, cr => new JsonRpcSerializer(cr), invalidServer));
     }
 
     [Fact]
@@ -233,8 +234,8 @@ public class JsonRpcMethodAttributeTests : TestBase
         var serverStream = streams.Item1;
         var clientStream = streams.Item2;
 
-        Assert.Throws<ArgumentException>(() => JsonRpc.Attach(serverStream, clientStream, invalidServer));
-        Assert.Throws<ArgumentException>(() => new JsonRpc(serverStream, clientStream, invalidServer));
+        Assert.Throws<ArgumentException>(() => JsonRpc.Attach(serverStream, clientStream, cr => new JsonRpcSerializer(cr), invalidServer));
+        Assert.Throws<ArgumentException>(() => new JsonRpc(serverStream, clientStream, cr => new JsonRpcSerializer(cr), invalidServer));
     }
 
     [Fact]
@@ -246,8 +247,8 @@ public class JsonRpcMethodAttributeTests : TestBase
         var serverStream = streams.Item1;
         var clientStream = streams.Item2;
 
-        Assert.Throws<ArgumentException>(() => JsonRpc.Attach(serverStream, clientStream, invalidServer));
-        Assert.Throws<ArgumentException>(() => new JsonRpc(serverStream, clientStream, invalidServer));
+        Assert.Throws<ArgumentException>(() => JsonRpc.Attach(serverStream, clientStream, cr => new JsonRpcSerializer(cr), invalidServer));
+        Assert.Throws<ArgumentException>(() => new JsonRpc(serverStream, clientStream, cr => new JsonRpcSerializer(cr), invalidServer));
     }
 
     [Fact]
@@ -259,8 +260,8 @@ public class JsonRpcMethodAttributeTests : TestBase
         var serverStream = streams.Item1;
         var clientStream = streams.Item2;
 
-        Assert.Throws<ArgumentException>(() => JsonRpc.Attach(serverStream, clientStream, invalidServer));
-        Assert.Throws<ArgumentException>(() => new JsonRpc(serverStream, clientStream, invalidServer));
+        Assert.Throws<ArgumentException>(() => JsonRpc.Attach(serverStream, clientStream, cr => new JsonRpcSerializer(cr), invalidServer));
+        Assert.Throws<ArgumentException>(() => new JsonRpc(serverStream, clientStream, cr => new JsonRpcSerializer(cr), invalidServer));
     }
 
     [Fact]
@@ -272,7 +273,7 @@ public class JsonRpcMethodAttributeTests : TestBase
         var serverStream = streams.Item1;
         var clientStream = streams.Item2;
 
-        var rpc = JsonRpc.Attach(serverStream, clientStream, invalidServer);
+        var rpc = JsonRpc.Attach(serverStream, clientStream, cr => new JsonRpcSerializer(cr), invalidServer);
 
         string result = await rpc.InvokeAsync<string>("FirstAsync", "hi");
         Assert.Equal("First hi", result);

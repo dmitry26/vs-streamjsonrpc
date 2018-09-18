@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Data.JsonRpc;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
@@ -42,8 +43,8 @@ public class PerfTests
     [MemberData(nameof(PipeTypes))]
     public async Task ChattyPerf(Stream serverStream, Stream clientStream)
     {
-        using (JsonRpc.Attach(serverStream, new Server()))
-        using (var client = JsonRpc.Attach(clientStream))
+        using (JsonRpc.Attach(serverStream, cr => new JsonRpcSerializer(cr), new Server()))
+        using (var client = JsonRpc.Attach(clientStream, cr => new JsonRpcSerializer(cr)))
         {
             // warmup
             await client.InvokeAsync("NoOp");
@@ -74,8 +75,8 @@ public class PerfTests
     public async Task BurstNotifyMessages(Stream serverStream, Stream clientStream)
     {
         var notifyServer = new NotifyServer();
-        using (JsonRpc.Attach(serverStream, notifyServer))
-        using (var client = JsonRpc.Attach(clientStream))
+        using (JsonRpc.Attach(serverStream, cr => new JsonRpcSerializer(cr), notifyServer))
+        using (var client = JsonRpc.Attach(clientStream, cr => new JsonRpcSerializer(cr)))
         {
             // warmup
             await client.InvokeAsync("NoOp");
@@ -111,8 +112,8 @@ public class PerfTests
     public async Task BurstInvokeMessages(Stream serverStream, Stream clientStream)
     {
         var server = new Server();
-        using (JsonRpc.Attach(serverStream, server))
-        using (var client = JsonRpc.Attach(clientStream))
+        using (JsonRpc.Attach(serverStream, cr => new JsonRpcSerializer(cr), server))
+        using (var client = JsonRpc.Attach(clientStream, cr => new JsonRpcSerializer(cr)))
         {
             // warmup
             await client.InvokeAsync("NoOp");

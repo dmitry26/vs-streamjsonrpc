@@ -10,24 +10,21 @@ namespace StreamJsonRpc
     using System.Reflection;
     using System.Threading;
     using Microsoft;
-    using Newtonsoft.Json;
-    using Newtonsoft.Json.Linq;
+	using System.Data.JsonRpc;
 
     internal sealed class TargetMethod
     {
         private readonly HashSet<string> errorMessages = new HashSet<string>(StringComparer.Ordinal);
-        private readonly JsonRpcMessage request;
+        private readonly JsonRpcRequest request;
         private readonly object target;
         private readonly MethodInfo method;
         private readonly object[] parameters;
 
         internal TargetMethod(
-            JsonRpcMessage request,
-            JsonSerializer jsonSerializer,
+            JsonRpcRequest request,
             IEnumerable<MethodSignatureAndTarget> candidateMethodTargets)
         {
             Requires.NotNull(request, nameof(request));
-            Requires.NotNull(jsonSerializer, nameof(jsonSerializer));
             Requires.NotNull(candidateMethodTargets, nameof(candidateMethodTargets));
 
             this.request = request;
@@ -35,7 +32,7 @@ namespace StreamJsonRpc
             var targetMethods = new Dictionary<MethodSignatureAndTarget, object[]>();
             foreach (var method in candidateMethodTargets)
             {
-                this.TryAddMethod(request, targetMethods, method, jsonSerializer);
+                this.TryAddMethod(request, targetMethods, method);
             }
 
             KeyValuePair<MethodSignatureAndTarget, object[]> methodWithParameters = targetMethods.FirstOrDefault();
@@ -88,12 +85,11 @@ namespace StreamJsonRpc
             return this.method.Invoke(!this.method.IsStatic ? this.target : null, this.parameters);
         }
 
-        private static object[] TryGetParameters(JsonRpcMessage request, MethodSignature method, HashSet<string> errors, JsonSerializer jsonSerializer, string requestMethodName)
+        private static object[] TryGetParameters(JsonRpcRequest request, MethodSignature method, HashSet<string> errors, string requestMethodName)
         {
             Requires.NotNull(request, nameof(request));
             Requires.NotNull(method, nameof(method));
             Requires.NotNull(errors, nameof(errors));
-            Requires.NotNull(jsonSerializer, nameof(jsonSerializer));
             Requires.NotNullOrEmpty(requestMethodName, nameof(requestMethodName));
 
             // ref and out parameters aren't supported.
@@ -103,17 +99,17 @@ namespace StreamJsonRpc
                 return null;
             }
 
-            if (request.Parameters != null && request.Parameters.Type == JTokenType.Object)
+            if (request.HasParamsByName)
             {
                 // If the parameter passed is an object, then we want to find the matching method with the same name and the method only takes a JToken as a parameter,
                 // and possibly a CancellationToken
-                if (method.Parameters.Length < 1 || method.Parameters[0].ParameterType != typeof(JToken))
+                if (method.Parameters.Length < 1 || method.Parameters[0].ParameterType != typeof(JsonObject))
                 {
                     return null;
                 }
 
                 var args = new List<object>(2);
-                args.Add(request.Parameters);
+                args.Add(request.ParametersByName);
 
                 if (method.Parameters.Length > 1 && method.Parameters[1].ParameterType == typeof(CancellationToken))
                 {
@@ -156,7 +152,7 @@ namespace StreamJsonRpc
             // Parameters must be compatible
             try
             {
-                return request.GetParameters(method.Parameters, jsonSerializer);
+                return GetParameters(request, method.Parameters);
             }
             catch (Exception exception)
             {
@@ -165,13 +161,57 @@ namespace StreamJsonRpc
             }
         }
 
-        private bool TryAddMethod(JsonRpcMessage request, Dictionary<MethodSignatureAndTarget, object[]> targetMethods, MethodSignatureAndTarget method, JsonSerializer jsonSerializer)
+		private static object[] GetParameters(JsonRpcRequest request,ParameterInfo[] parameterInfos)
+		{
+			Requires.NotNull(parameterInfos,nameof(parameterInfos));
+
+			if (parameterInfos.Length == 0)
+				return new object[0];
+
+			int index = 0;
+			var result = new List<object>(parameterInfos.Length);
+
+			foreach (var param in request.ParametersByPosition ?? new object[0])
+			{
+				var type = typeof(object);
+
+				if (index < parameterInfos.Length)
+				{
+					type = parameterInfos[index].ParameterType;
+					index++;
+				}
+
+				if (param is null)
+				{
+					if (type.IsValueType && !type.IsNullable())
+						throw new InvalidOperationException($"The parameter is null, and not compatible with merthod parameter {type}");
+
+					result.Add(param);
+				}
+				else if (type.IsAssignableFrom(param.GetType()))
+					result.Add(param);
+				else
+					throw new InvalidOperationException($"The parameter {param.GetType()} is not compatible with merthod parameter {type}");
+			}
+
+			for (; index < parameterInfos.Length; index++)
+			{
+				object value =
+				  parameterInfos[index].HasDefaultValue ? parameterInfos[index].DefaultValue :
+				  parameterInfos[index].ParameterType == typeof(CancellationToken) ? (CancellationToken?)CancellationToken.None :
+				  null;
+				result.Add(value);
+			}
+
+			return result.ToArray();
+		}
+
+        private bool TryAddMethod(JsonRpcRequest request, Dictionary<MethodSignatureAndTarget, object[]> targetMethods, MethodSignatureAndTarget method)
         {
             Requires.NotNull(request, nameof(request));
             Requires.NotNull(targetMethods, nameof(targetMethods));
-            Requires.NotNull(jsonSerializer, nameof(jsonSerializer));
 
-            object[] parameters = TryGetParameters(request, method.Signature, this.errorMessages, jsonSerializer, request.Method);
+            object[] parameters = TryGetParameters(request, method.Signature, this.errorMessages, request.Method);
             if (parameters != null)
             {
                 targetMethods.Add(method, parameters);

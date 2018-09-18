@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.JsonRpc;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -339,7 +340,7 @@ public class JsonRpcWithFatalExceptionsTests : TestBase
         internal int IsFatalExceptionCount;
 
         public JsonRpcWithFatalExceptions(DelimitedMessageHandler messageHandler, object target = null)
-            : base(messageHandler, target)
+            : base(messageHandler, cr => new JsonRpcSerializer(cr), target)
         {
             this.IsFatalExceptionCount = 0;
         }

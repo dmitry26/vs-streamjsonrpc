@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.JsonRpc;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -30,8 +31,8 @@ public class TargetObjectEventsTests : TestBase
         this.serverStream = streams.Item1;
         this.clientStream = streams.Item2;
 
-        this.serverRpc = JsonRpc.Attach(this.serverStream, this.server);
-        this.clientRpc = JsonRpc.Attach(this.clientStream, this.client);
+        this.serverRpc = JsonRpc.Attach(this.serverStream, cr => new JsonRpcSerializer(cr), this.server);
+        this.clientRpc = JsonRpc.Attach(this.clientStream, cr => new JsonRpcSerializer(cr), this.client);
     }
 
     [Theory]
@@ -40,7 +41,7 @@ public class TargetObjectEventsTests : TestBase
     public void ServerEventRespondsToOptions(bool registerOn)
     {
         var streams = FullDuplexStream.CreateStreams();
-        var rpc = new JsonRpc(streams.Item1, streams.Item1);
+        var rpc = new JsonRpc(streams.Item1, streams.Item1, cr => new JsonRpcSerializer(cr));
         var options = new JsonRpcTargetOptions { NotifyClientOfEvents = registerOn };
         var server = new Server();
         rpc.AddLocalRpcTarget(server, options);
@@ -103,7 +104,7 @@ public class TargetObjectEventsTests : TestBase
     public void IncompatibleEventHandlerType()
     {
         var streams = FullDuplexStream.CreateStreams();
-        Assert.Throws<NotSupportedException>(() => JsonRpc.Attach(streams.Item1, new ServerWithIncompatibleEvents()));
+        Assert.Throws<NotSupportedException>(() => JsonRpc.Attach(streams.Item1, cr => new JsonRpcSerializer(cr), new ServerWithIncompatibleEvents()));
     }
 
     [Fact]
@@ -116,7 +117,7 @@ public class TargetObjectEventsTests : TestBase
             return clrMethodName;
         };
 
-        var serverRpc = new JsonRpc(this.serverStream, this.serverStream);
+        var serverRpc = new JsonRpc(this.serverStream, this.serverStream, cr => new JsonRpcSerializer(cr));
         serverRpc.AddLocalRpcTarget(this.server, new JsonRpcTargetOptions { MethodNameTransform = methodNameTransform });
     }
 
@@ -142,8 +143,8 @@ public class TargetObjectEventsTests : TestBase
         var clientWithoutTransform = new Client();
         var clientWithTransform = new Client();
 
-        this.serverRpc = new JsonRpc(this.serverStream, this.serverStream);
-        this.clientRpc = new JsonRpc(this.clientStream, this.clientStream);
+        this.serverRpc = new JsonRpc(this.serverStream, this.serverStream, cr => new JsonRpcSerializer(cr));
+        this.clientRpc = new JsonRpc(this.clientStream, this.clientStream, cr => new JsonRpcSerializer(cr));
 
         this.serverRpc.AddLocalRpcTarget(serverWithTransform, new JsonRpcTargetOptions { EventNameTransform = eventNameTransform });
 

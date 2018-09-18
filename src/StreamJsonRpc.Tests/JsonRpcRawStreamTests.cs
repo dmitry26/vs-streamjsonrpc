@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Data.JsonRpc;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -37,7 +38,7 @@ public class JsonRpcRawStreamTests : TestBase
         var serverStreamDisconnected = new TaskCompletionSource<object>();
         serverStream.Disconnected += (sender, args) => serverStreamDisconnected.SetResult(null);
 
-        using (JsonRpc serverRpc = JsonRpc.Attach(serverStream, server))
+        using (JsonRpc serverRpc = JsonRpc.Attach(serverStream, cr => new JsonRpcSerializer(cr), server))
         {
             // Subscribe to disconnected event on json rpc
             var disconnectedEventFired = new TaskCompletionSource<JsonRpcDisconnectedEventArgs>();

@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Data.JsonRpc;
 using System.Linq;
 using System.Net.WebSockets;
 using System.Text;
@@ -24,8 +25,8 @@ public class WebSocketMessageHandlerTests : TestBase
 {
     private const int BufferSize = 9; // an odd number so as to split multi-byte encoded characters
     private static readonly IReadOnlyList<Encoding> Encodings = new Encoding[] { Encoding.UTF8, Encoding.Unicode, Encoding.UTF32 };
-    private Random random = new Random();
-    private MockWebSocket socket;
+    private readonly Random random = new Random();
+    private readonly MockWebSocket socket;
     private WebSocketMessageHandler handler;
 
     public WebSocketMessageHandlerTests(ITestOutputHelper logger)
@@ -209,7 +210,7 @@ public class WebSocketMessageHandlerTests : TestBase
         var testClient = testServer.CreateWebSocketClient();
         var webSocket = await testClient.ConnectAsync(testServer.BaseAddress, this.TimeoutToken);
 
-        var rpc = new JsonRpc(new WebSocketMessageHandler(webSocket));
+        var rpc = new JsonRpc(new WebSocketMessageHandler(webSocket), cr => new JsonRpcSerializer(cr));
         rpc.StartListening();
         return (rpc, webSocket);
     }
@@ -332,7 +333,7 @@ public class WebSocketMessageHandlerTests : TestBase
                 if (context.WebSockets.IsWebSocketRequest)
                 {
                     var webSocket = await context.WebSockets.AcceptWebSocketAsync();
-                    using (var rpc = new JsonRpc(new WebSocketMessageHandler(webSocket), new EchoServer(webSocket)))
+                    using (var rpc = new JsonRpc(new WebSocketMessageHandler(webSocket), cr => new JsonRpcSerializer(cr), new EchoServer(webSocket)))
                     {
                         rpc.StartListening();
                         await rpc.Completion;

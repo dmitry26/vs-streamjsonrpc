@@ -2,8 +2,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Data.JsonRpc;
 using System.Threading;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StreamJsonRpc;
 using Xunit;
@@ -16,7 +18,7 @@ public class JsonRpcClientInteropTests : InteropTestBase
     public JsonRpcClientInteropTests(ITestOutputHelper logger)
         : base(logger, serverTest: false)
     {
-        this.clientRpc = new JsonRpc(this.messageHandler);
+        this.clientRpc = new JsonRpc(this.messageHandler,cr => new JsonRpcSerializer(cr));
         this.clientRpc.StartListening();
     }
 
@@ -57,8 +59,9 @@ public class JsonRpcClientInteropTests : InteropTestBase
     {
         Task notifyTask = this.clientRpc.NotifyAsync("test");
         JObject request = await this.ReceiveAsync();
-        Assert.Equal(JTokenType.Array, request["params"].Type);
-        Assert.Equal(0, ((JArray)request["params"]).Count);
+        //Assert.Equal(JTokenType.Array, request["params"].Type);
+        //Assert.Equal(0, ((JArray)request["params"]).Count);
+        Assert.Null(request["params"]);
     }
 
     [Fact]
@@ -92,27 +95,31 @@ public class JsonRpcClientInteropTests : InteropTestBase
     {
         Task notifyTask = this.clientRpc.InvokeAsync<object>("test");
         JObject request = await this.ReceiveAsync();
-        Assert.Equal(JTokenType.Array, request["params"].Type);
-        Assert.Equal(0, ((JArray)request["params"]).Count);
+        //Assert.Equal(JTokenType.Array, request["params"].Type);
+        //Assert.Equal(0, ((JArray)request["params"]).Count);
+        Assert.Null(request["params"]);
     }
 
     [Fact]
     public async Task SerializeWithNoWhitespace()
     {
-        this.clientRpc.JsonSerializerFormatting = Newtonsoft.Json.Formatting.None;
+        //this.clientRpc.JsonSerializerFormatting = Newtonsoft.Json.Formatting.None;
         Task notifyTask = this.clientRpc.NotifyAsync("test");
         string json = await this.messageHandler.WrittenMessages.DequeueAsync(this.TimeoutToken);
         this.Logger.WriteLine(json);
-        Assert.Equal(@"{""jsonrpc"":""2.0"",""method"":""test"",""params"":[]}", json);
+        //Assert.Equal(@"{""jsonrpc"":""2.0"",""method"":""test"",""params"":[]}", json);
+        Assert.Equal(@"{""jsonrpc"":""2.0"",""method"":""test""}",json);
     }
 
     [Fact]
     public async Task SerializeWithPrettyFormatting()
     {
+        ((JsonRpcSerializer)(this.clientRpc.JsonRpcSerializer)).JsonSerializer.Formatting = Formatting.Indented;
         Task notifyTask = this.clientRpc.NotifyAsync("test");
         string json = await this.messageHandler.WrittenMessages.DequeueAsync(this.TimeoutToken);
         this.Logger.WriteLine(json);
-        string expected = "{\n  \"jsonrpc\": \"2.0\",\n  \"method\": \"test\",\n  \"params\": []\n}"
+        //string expected = "{\n  \"jsonrpc\": \"2.0\",\n  \"method\": \"test\",\n  \"params\": []\n}"
+        string expected = "{\n  \"jsonrpc\": \"2.0\",\n  \"method\": \"test\"\n}"
             .Replace("\n", Environment.NewLine);
         Assert.Equal(expected, json);
     }
@@ -246,7 +253,8 @@ public class JsonRpcClientInteropTests : InteropTestBase
         var ex = await Assert.ThrowsAsync<RemoteInvocationException>(() => requestTask);
         Assert.Null(ex.RemoteStackTrace);
         Assert.Null(ex.RemoteErrorCode);
-        Assert.Equal(errorData.stack.foo, ex.ErrorData["stack"].Value<int>("foo"));
+        dynamic exErrData = ex.ErrorData;
+        Assert.Equal(errorData.stack.foo,(int)exErrData.stack.foo);
     }
 
     [Fact]
@@ -271,8 +279,8 @@ public class JsonRpcClientInteropTests : InteropTestBase
         });
         var ex = await Assert.ThrowsAsync<RemoteInvocationException>(() => requestTask);
         Assert.Equal(expectedMessage, ex.Message);
-        var errorData = Assert.IsType<JObject>(ex.ErrorData);
-        Assert.Empty(errorData.Properties());
+        var errorData = Assert.IsType<JsonObject>(ex.ErrorData);
+        Assert.Empty(errorData);
     }
 
     [Fact]
@@ -295,7 +303,7 @@ public class JsonRpcClientInteropTests : InteropTestBase
         });
         var ex = await Assert.ThrowsAsync<RemoteInvocationException>(() => requestTask);
         Assert.Equal(expectedMessage, ex.Message);
-        Assert.Equal(expectedData, ex.ErrorData?.Value<string>());
+        Assert.Equal(expectedData, (string)ex.ErrorData);
     }
 
     [Fact]

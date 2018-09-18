@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Data.JsonRpc;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -35,7 +36,7 @@ public class MessageHeaderTests : TestBase
     [Fact]
     public async Task HeaderEmitted()
     {
-        var clientRpc = JsonRpc.Attach(this.clientStream);
+        var clientRpc = JsonRpc.Attach(this.clientStream, cr => new JsonRpcSerializer(cr));
         this.TimeoutToken.Register(clientRpc.Dispose);
 
         await clientRpc.NotifyAsync("someMethod");
@@ -77,10 +78,10 @@ public class MessageHeaderTests : TestBase
     public async Task ReceiveMessageWithEncoding(string encodingName)
     {
         var server = new Server();
-        var rpcServer = JsonRpc.Attach(this.serverStream, server);
+        var rpcServer = JsonRpc.Attach(this.serverStream, cr => new JsonRpcSerializer(cr), server);
 
         Encoding contentEncoding = Encoding.GetEncoding(encodingName);
-        string jsonMessage = @"{""method"":""Foo"",""id"":1}";
+		string jsonMessage = @"{""jsonrpc"": ""2.0"",""method"":""Foo"",""id"":1}";
         byte[] message = contentEncoding.GetBytes(jsonMessage);
 
         // Write the header, which is always in ASCII.
@@ -102,7 +103,7 @@ public class MessageHeaderTests : TestBase
     [MemberData(nameof(TestedEncodings))]
     public async Task SendMessageWithEncoding(string encodingName)
     {
-        var rpcClient = JsonRpc.Attach(this.clientStream);
+        var rpcClient = JsonRpc.Attach(this.clientStream, cr => new JsonRpcSerializer(cr));
         rpcClient.Encoding = Encoding.GetEncoding(encodingName);
         await rpcClient.NotifyAsync("Foo");
         rpcClient.Dispose();

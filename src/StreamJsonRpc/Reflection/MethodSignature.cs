@@ -4,6 +4,7 @@
 namespace StreamJsonRpc
 {
     using System;
+	using System.Collections.Generic;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
     using System.Linq;
@@ -31,6 +32,8 @@ namespace StreamJsonRpc
         internal MethodInfo MethodInfo { get; }
 
         internal ParameterInfo[] Parameters => this.parameters ?? (this.parameters = this.MethodInfo.GetParameters() ?? EmptyParameterInfoArray);
+
+		internal IEnumerable<ParameterInfo> ParamsExcludingCancellationToken => this.Parameters.Where(pi => !IsCancellationToken(pi));
 
         internal bool IsPublic => this.MethodInfo.IsPublic;
 

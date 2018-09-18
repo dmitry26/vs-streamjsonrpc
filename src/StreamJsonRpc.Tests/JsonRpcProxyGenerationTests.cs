@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Data.JsonRpc;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -27,10 +28,10 @@ public class JsonRpcProxyGenerationTests : TestBase
         this.serverStream = streams.Item1;
         this.clientStream = streams.Item2;
 
-        this.clientRpc = JsonRpc.Attach<IServer>(this.clientStream);
+        this.clientRpc = JsonRpc.Attach<IServer>(this.clientStream, cr => new JsonRpcSerializer(cr));
 
         this.server = new Server();
-        this.serverRpc = JsonRpc.Attach(this.serverStream, this.server);
+        this.serverRpc = JsonRpc.Attach(this.serverStream, cr => new JsonRpcSerializer(cr), this.server);
     }
 
     public interface IServer
@@ -99,7 +100,7 @@ public class JsonRpcProxyGenerationTests : TestBase
     public void ProxyTypeIsReused()
     {
         var streams = FullDuplexStream.CreateStreams();
-        var clientRpc = JsonRpc.Attach<IServer>(streams.Item1);
+        var clientRpc = JsonRpc.Attach<IServer>(streams.Item1, cr => new JsonRpcSerializer(cr));
         Assert.IsType(this.clientRpc.GetType(), clientRpc);
     }
 
@@ -151,7 +152,7 @@ public class JsonRpcProxyGenerationTests : TestBase
     public void NonTaskReturningMethod()
     {
         var streams = FullDuplexStream.CreateStreams();
-        var exception = Assert.Throws<NotSupportedException>(() => JsonRpc.Attach<IServerWithNonTaskReturnTypes>(streams.Item1));
+        var exception = Assert.Throws<NotSupportedException>(() => JsonRpc.Attach<IServerWithNonTaskReturnTypes>(streams.Item1, cr => new JsonRpcSerializer(cr)));
         this.Logger.WriteLine(exception.Message);
     }
 
@@ -159,7 +160,7 @@ public class JsonRpcProxyGenerationTests : TestBase
     [Trait("NegativeTest", "")]
     public void UnsupportedDelegateTypeOnEvent()
     {
-        var exception = Assert.Throws<NotSupportedException>(() => JsonRpc.Attach<IServerWithUnsupportedEventTypes>(this.clientStream));
+        var exception = Assert.Throws<NotSupportedException>(() => JsonRpc.Attach<IServerWithUnsupportedEventTypes>(this.clientStream, cr => new JsonRpcSerializer(cr)));
         this.Logger.WriteLine(exception.Message);
     }
 
@@ -167,7 +168,7 @@ public class JsonRpcProxyGenerationTests : TestBase
     [Trait("NegativeTest", "")]
     public void PropertyOnInterface()
     {
-        var exception = Assert.Throws<NotSupportedException>(() => JsonRpc.Attach<IServerWithProperties>(this.clientStream));
+        var exception = Assert.Throws<NotSupportedException>(() => JsonRpc.Attach<IServerWithProperties>(this.clientStream, cr => new JsonRpcSerializer(cr)));
         this.Logger.WriteLine(exception.Message);
     }
 
@@ -175,7 +176,7 @@ public class JsonRpcProxyGenerationTests : TestBase
     [Trait("NegativeTest", "")]
     public void GenericMethodOnInterface()
     {
-        var exception = Assert.Throws<NotSupportedException>(() => JsonRpc.Attach<IServerWithGenericMethod>(this.clientStream));
+        var exception = Assert.Throws<NotSupportedException>(() => JsonRpc.Attach<IServerWithGenericMethod>(this.clientStream, cr => new JsonRpcSerializer(cr)));
         this.Logger.WriteLine(exception.Message);
     }
 
@@ -183,7 +184,7 @@ public class JsonRpcProxyGenerationTests : TestBase
     [Trait("NegativeTest", "")]
     public void GenerateProxyFromClassNotSuppported()
     {
-        var exception = Assert.Throws<NotSupportedException>(() => JsonRpc.Attach<EmptyClass>(this.clientStream));
+        var exception = Assert.Throws<NotSupportedException>(() => JsonRpc.Attach<EmptyClass>(this.clientStream, cr => new JsonRpcSerializer(cr)));
         this.Logger.WriteLine(exception.Message);
     }
 
@@ -216,9 +217,9 @@ public class JsonRpcProxyGenerationTests : TestBase
     {
         var streams = FullDuplexStream.CreateStreams();
         var server = new Server();
-        var serverRpc = JsonRpc.Attach(streams.Item2, server);
+        var serverRpc = JsonRpc.Attach(streams.Item2, cr => new JsonRpcSerializer(cr), server);
 
-        var clientRpc = new JsonRpc(streams.Item1, streams.Item1);
+        var clientRpc = new JsonRpc(streams.Item1, streams.Item1, cr => new JsonRpcSerializer(cr));
         var client1 = clientRpc.Attach<IServer>();
         var client2 = clientRpc.Attach<IServer2>();
         clientRpc.StartListening();
@@ -232,9 +233,9 @@ public class JsonRpcProxyGenerationTests : TestBase
     {
         var streams = FullDuplexStream.CreateStreams();
         var server = new Server();
-        var serverRpc = JsonRpc.Attach(streams.Item2, server);
+        var serverRpc = JsonRpc.Attach(streams.Item2, cr => new JsonRpcSerializer(cr), server);
 
-        var clientRpc = new JsonRpc(streams.Item1, streams.Item1);
+        var clientRpc = new JsonRpc(streams.Item1, streams.Item1, cr => new JsonRpcSerializer(cr));
         var client1 = clientRpc.Attach<IServer>();
         Assert.IsNotType(typeof(IDisposable), client1);
     }
@@ -244,7 +245,7 @@ public class JsonRpcProxyGenerationTests : TestBase
     {
         // When implementing internal interfaces work, fill out this test to actually invoke it.
         var streams = FullDuplexStream.CreateStreams();
-        Assert.Throws<TypeLoadException>(() => JsonRpc.Attach<IServerInternal>(streams.Item1));
+        Assert.Throws<TypeLoadException>(() => JsonRpc.Attach<IServerInternal>(streams.Item1, cr => new JsonRpcSerializer(cr)));
     }
 
 #if NET452 || NET461 || NETCOREAPP2_0
@@ -266,13 +267,13 @@ public class JsonRpcProxyGenerationTests : TestBase
         var prefixOptions = new JsonRpcProxyOptions { MethodNameTransform = CommonMethodNameTransforms.Prepend("ns.") };
 
         // Construct two client proxies with conflicting method transforms to prove that each instance returned retains its unique options.
-        var clientRpc = new JsonRpc(this.clientStream, this.clientStream);
+        var clientRpc = new JsonRpc(this.clientStream, this.clientStream, cr => new JsonRpcSerializer(cr));
         var clientRpcWithCamelCase = clientRpc.Attach<IServer3>(camelCaseOptions);
         var clientRpcWithPrefix = clientRpc.Attach<IServer3>(prefixOptions);
         clientRpc.StartListening();
 
         // Construct the server to only respond to one set of method names for now to confirm that the client is sending the right one.
-        this.serverRpc = new JsonRpc(this.serverStream, this.serverStream);
+        this.serverRpc = new JsonRpc(this.serverStream, this.serverStream, cr => new JsonRpcSerializer(cr));
         this.serverRpc.AddLocalRpcTarget(this.server, new JsonRpcTargetOptions { MethodNameTransform = camelCaseOptions.MethodNameTransform });
         this.serverRpc.StartListening();
 
@@ -342,13 +343,13 @@ public class JsonRpcProxyGenerationTests : TestBase
         var prefixOptions = new JsonRpcProxyOptions { EventNameTransform = CommonMethodNameTransforms.Prepend("ns.") };
 
         // Construct two client proxies with conflicting method transforms to prove that each instance returned retains its unique options.
-        var clientRpc = new JsonRpc(this.clientStream, this.clientStream);
+        var clientRpc = new JsonRpc(this.clientStream, this.clientStream, cr => new JsonRpcSerializer(cr));
         var clientRpcWithCamelCase = clientRpc.Attach<IServer>(camelCaseOptions);
         var clientRpcWithPrefix = clientRpc.Attach<IServer>(prefixOptions);
         clientRpc.StartListening();
 
         // Construct the server to only respond to one set of method names for now to confirm that the client is sending the right one.
-        this.serverRpc = new JsonRpc(this.serverStream, this.serverStream);
+        this.serverRpc = new JsonRpc(this.serverStream, this.serverStream, cr => new JsonRpcSerializer(cr));
         this.serverRpc.AddLocalRpcTarget(this.server, new JsonRpcTargetOptions { EventNameTransform = camelCaseOptions.EventNameTransform });
         this.serverRpc.StartListening();
 

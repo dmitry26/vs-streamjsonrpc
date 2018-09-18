@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Data.JsonRpc;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -41,8 +42,8 @@ public class JsonRpcTests : TestBase
         this.serverStream = streams.Item1;
         this.clientStream = streams.Item2;
 
-        this.serverRpc = JsonRpc.Attach(this.serverStream, this.server);
-        this.clientRpc = JsonRpc.Attach(this.clientStream);
+        this.serverRpc = JsonRpc.Attach(this.serverStream, cr => new JsonRpcSerializer(cr), this.server);
+        this.clientRpc = JsonRpc.Attach(this.clientStream, cr => new JsonRpcSerializer(cr));
     }
 
     private interface IServer
@@ -57,8 +58,8 @@ public class JsonRpcTests : TestBase
     [Fact]
     public void Attach_Null_Throws()
     {
-        Assert.Throws<ArgumentNullException>(() => JsonRpc.Attach(stream: null));
-        Assert.Throws<ArgumentException>(() => JsonRpc.Attach(sendingStream: null, receivingStream: null));
+        Assert.Throws<ArgumentNullException>(() => JsonRpc.Attach(stream: null, serializerFactory: cr => new JsonRpcSerializer(cr)));
+        Assert.Throws<ArgumentException>(() => JsonRpc.Attach(sendingStream: null, receivingStream: null, serializerFactory: cr => new JsonRpcSerializer(cr)));
     }
 
     [Fact]
@@ -67,7 +68,7 @@ public class JsonRpcTests : TestBase
         var streams = Nerdbank.FullDuplexStream.CreateStreams();
         var receivingStream = streams.Item1;
         var server = new Server();
-        var rpc = JsonRpc.Attach(sendingStream: null, receivingStream: receivingStream, target: server);
+        var rpc = JsonRpc.Attach(sendingStream: null, receivingStream: receivingStream, serializerFactory: cr => new JsonRpcSerializer(cr), target: server);
         var disconnected = new AsyncManualResetEvent();
         rpc.Disconnected += (s, e) => disconnected.Set();
 
@@ -110,7 +111,7 @@ public class JsonRpcTests : TestBase
     {
         var sendingStream = new MemoryStream();
         long lastPosition = sendingStream.Position;
-        var rpc = JsonRpc.Attach(sendingStream: sendingStream, receivingStream: null);
+        var rpc = JsonRpc.Attach(sendingStream: sendingStream, receivingStream: null, serializerFactory: cr => new JsonRpcSerializer(cr));
 
         // Sending notifications is fine, as it's an outbound-only communication.
         await rpc.NotifyAsync("foo");
@@ -666,8 +667,8 @@ public class JsonRpcTests : TestBase
     [Fact]
     public async Task UnserializableTypeWorksWithConverter()
     {
-        this.clientRpc.JsonSerializer.Converters.Add(new UnserializableTypeConverter());
-        this.serverRpc.JsonSerializer.Converters.Add(new UnserializableTypeConverter());
+		((JsonRpcSerializer)(this.clientRpc.JsonRpcSerializer)).JsonSerializer.Converters.Add(new UnserializableTypeConverter());
+		((JsonRpcSerializer)(this.serverRpc.JsonRpcSerializer)).JsonSerializer.Converters.Add(new UnserializableTypeConverter());
         var result = await this.clientRpc.InvokeAsync<UnserializableType>(nameof(this.server.RepeatSpecialType), new UnserializableType { Value = "a" });
         Assert.Equal("a!", result.Value);
     }
@@ -680,17 +681,17 @@ public class JsonRpcTests : TestBase
         // doesn't find the method with the mangled name.
 
         // Test with the converter only on the client side.
-        this.clientRpc.JsonSerializer.Converters.Add(new StringBase64Converter());
+		((JsonRpcSerializer)(this.clientRpc.JsonRpcSerializer)).JsonSerializer.Converters.Add(new StringBase64Converter());
         string result = await this.clientRpc.InvokeAsync<string>(nameof(this.server.ExpectEncodedA), "a");
         Assert.Equal("a", result);
 
         // Test with the converter on both sides.
-        this.serverRpc.JsonSerializer.Converters.Add(new StringBase64Converter());
+		((JsonRpcSerializer)(this.serverRpc.JsonRpcSerializer)).JsonSerializer.Converters.Add(new StringBase64Converter());
         result = await this.clientRpc.InvokeAsync<string>(nameof(this.server.RepeatString), "a");
         Assert.Equal("a", result);
 
         // Test with the converter only on the server side.
-        this.clientRpc.JsonSerializer.Converters.Clear();
+		((JsonRpcSerializer)(this.clientRpc.JsonRpcSerializer)).JsonSerializer.Converters.Clear();
         result = await this.clientRpc.InvokeAsync<string>(nameof(this.server.AsyncMethod), "YQ==");
         Assert.Equal("YSE=", result); // a!
     }
@@ -818,7 +819,7 @@ public class JsonRpcTests : TestBase
     public void AddLocalRpcTarget_ExceptionThrownWhenTargetIsNull()
     {
         var streams = Nerdbank.FullDuplexStream.CreateStreams();
-        var rpc = new JsonRpc(streams.Item1, streams.Item2);
+        var rpc = new JsonRpc(streams.Item1, streams.Item2, cr => new JsonRpcSerializer(cr));
         Assert.Throws<ArgumentNullException>(() => rpc.AddLocalRpcTarget(null));
     }
 
@@ -826,7 +827,7 @@ public class JsonRpcTests : TestBase
     public async Task AddLocalRpcTarget_AdditionalTargetMethodFound()
     {
         var streams = Nerdbank.FullDuplexStream.CreateStreams();
-        var rpc = new JsonRpc(streams.Item1, streams.Item2);
+        var rpc = new JsonRpc(streams.Item1, streams.Item2, cr => new JsonRpcSerializer(cr));
         rpc.AddLocalRpcTarget(new Server());
         rpc.AddLocalRpcTarget(new AdditionalServerTargetOne());
         rpc.AddLocalRpcTarget(new AdditionalServerTargetTwo());
@@ -849,8 +850,8 @@ public class JsonRpcTests : TestBase
     public async Task AddLocalRpcTarget_NoTargetContainsRequestedMethod()
     {
         var streams = FullDuplexStream.CreateStreams();
-        var localRpc = JsonRpc.Attach(streams.Item2);
-        var serverRpc = new JsonRpc(streams.Item1, streams.Item1);
+        var localRpc = JsonRpc.Attach(streams.Item2, cr => new JsonRpcSerializer(cr));
+        var serverRpc = new JsonRpc(streams.Item1, streams.Item1, cr => new JsonRpcSerializer(cr));
         serverRpc.AddLocalRpcTarget(new Server());
         serverRpc.AddLocalRpcTarget(new AdditionalServerTargetOne());
         serverRpc.AddLocalRpcTarget(new AdditionalServerTargetTwo());
@@ -863,8 +864,8 @@ public class JsonRpcTests : TestBase
     public async Task AddLocalRpcTarget_WithNamespace()
     {
         var streams = FullDuplexStream.CreateStreams();
-        var localRpc = JsonRpc.Attach(streams.Item2);
-        var serverRpc = new JsonRpc(streams.Item1, streams.Item1);
+        var localRpc = JsonRpc.Attach(streams.Item2, cr => new JsonRpcSerializer(cr));
+        var serverRpc = new JsonRpc(streams.Item1, streams.Item1, cr => new JsonRpcSerializer(cr));
         serverRpc.AddLocalRpcTarget(new Server());
         serverRpc.AddLocalRpcTarget(new AdditionalServerTargetOne(), new JsonRpcTargetOptions { MethodNameTransform = n => "one." + n });
         serverRpc.AddLocalRpcTarget(new AdditionalServerTargetTwo(), new JsonRpcTargetOptions { MethodNameTransform = CommonMethodNameTransforms.Prepend("two.") });
@@ -884,7 +885,7 @@ public class JsonRpcTests : TestBase
 
         // Now set up a server with a camel case transform and verify that it works (and that the original casing doesn't).
         var streams = FullDuplexStream.CreateStreams();
-        var rpc = new JsonRpc(streams.Item1, streams.Item2);
+        var rpc = new JsonRpc(streams.Item1, streams.Item2, cr => new JsonRpcSerializer(cr));
         rpc.AddLocalRpcTarget(new Server(), new JsonRpcTargetOptions { MethodNameTransform = CommonMethodNameTransforms.CamelCase });
         rpc.StartListening();
 
@@ -900,7 +901,7 @@ public class JsonRpcTests : TestBase
     {
         // Now set up a server with a camel case transform and verify that it works (and that the original casing doesn't).
         var streams = FullDuplexStream.CreateStreams();
-        var rpc = new JsonRpc(streams.Item1, streams.Item2);
+        var rpc = new JsonRpc(streams.Item1, streams.Item2, cr => new JsonRpcSerializer(cr));
         rpc.AddLocalRpcTarget(new Server(), new JsonRpcTargetOptions { MethodNameTransform = CommonMethodNameTransforms.CamelCase });
         rpc.StartListening();
 
@@ -1163,7 +1164,7 @@ public class JsonRpcTests : TestBase
     [Fact]
     public void Completion_ThrowsBeforeListening()
     {
-        var rpc = new JsonRpc(Stream.Null, Stream.Null);
+        var rpc = new JsonRpc(Stream.Null, Stream.Null, cr => new JsonRpcSerializer(cr));
         Assert.Throws<InvalidOperationException>(() =>
         {
             var foo = rpc.Completion;
@@ -1258,8 +1259,8 @@ public class JsonRpcTests : TestBase
         this.serverStream = streams.Item1;
         this.clientStream = streams.Item2;
 
-        this.serverRpc = new JsonRpc(this.serverStream, this.serverStream, this.server);
-        this.clientRpc = new JsonRpc(this.clientStream, this.clientStream);
+        this.serverRpc = new JsonRpc(this.serverStream, this.serverStream, cr => new JsonRpcSerializer(cr), this.server);
+        this.clientRpc = new JsonRpc(this.clientStream, this.clientStream, cr => new JsonRpcSerializer(cr));
     }
 
     private void StartListening()
@@ -1298,10 +1299,10 @@ public class JsonRpcTests : TestBase
             return argument + "!";
         }
 
-        public static string TestParameter(JToken token)
-        {
-            return "object " + token.ToString();
-        }
+		public static string TestParameter(JsonElement jObj)
+		{
+			return "object " + jObj.ToString(Formatting.Indented,true);
+		}
 
         public static string TestParameter()
         {
@@ -1450,7 +1451,7 @@ public class JsonRpcTests : TestBase
             return arg + "!";
         }
 
-        public async Task<string> AsyncMethodWithJTokenAndCancellation(JToken paramObject, CancellationToken cancellationToken)
+        public async Task<string> AsyncMethodWithJTokenAndCancellation(JsonElement paramObject, CancellationToken cancellationToken)
         {
             this.ServerMethodReached.Set();
 
@@ -1681,4 +1682,16 @@ public class JsonRpcTests : TestBase
             base.Post(d, state);
         }
     }
+}
+
+internal static class JsonElementExts
+{
+	public static string ToString(this JsonElement jElm,Formatting formatting,bool asString = false) =>
+	  ((jElm is JsonValue jVal && asString) ? jVal.ToString() :
+	  (jElm is null) ? string.Empty : JsonConvert.SerializeObject(jElm,formatting,
+	  new JsonSerializerSettings
+	{
+		MetadataPropertyHandling = MetadataPropertyHandling.Ignore,
+		  ContractResolver = new JsonElementContractResolver()
+	}));
 }
