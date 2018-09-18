@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <LangVersion>latest</LangVersion>
+    <OutputPath>..\bin\$(MSBuildProjectName)\Debug</OutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <LangVersion>latest</LangVersion>
+    <OutputPath>..\bin\$(MSBuildProjectName)\Release</OutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Sav\**" />
+    <EmbeddedResource Remove="Sav\**" />
+    <None Remove="Sav\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\JsonRpcSerializer.JsonNET\JsonRpcSerializer.JsonNET.csproj" />
+    <ProjectReference Include="..\..\src\StreamJsonRpc\StreamJsonRpc.csproj" />
+  </ItemGroup>
+
+</Project>

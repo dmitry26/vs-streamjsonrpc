@@ -1,0 +1,33 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+    <TypeScriptToolsVersion>2.8</TypeScriptToolsVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <OutputPath>..\bin\$(MSBuildProjectName)\Debug</OutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <OutputPath>..\bin\$(MSBuildProjectName)\Release</OutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Remove="wwwroot\js\site.ts" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.All" Version="2.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\JsonRpcSerializer.JsonNET\JsonRpcSerializer.JsonNET.csproj" />
+    <ProjectReference Include="..\..\src\StreamJsonRpc\StreamJsonRpc.csproj" />
+  </ItemGroup>  
+
+  <ItemGroup>
+    <TypeScriptCompile Include="wwwroot\js\site.ts" />
+  </ItemGroup>
+
+</Project>
